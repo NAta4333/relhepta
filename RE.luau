@@ -1,22 +1,26 @@
--- Improved Drawing Library (March 2026 edition)
--- Added: dashed lines, basic world-to-screen conversion
+-- Improved Drawing Library (2025–2026 edition)
+-- Features: gradients, fade animation, auto Vector2→UDim2, reliable TextBounds, etc.
 
 local DrawingCache = {}
 local DrawingObjects = {}
 
 local Fonts = {
-    [0] = Enum.Font.Arial,      [1] = Enum.Font.BuilderSans,
-    [2] = Enum.Font.Gotham,     [3] = Enum.Font.RobotoMono,
-    [4] = Enum.Font.SourceSans, [5] = Enum.Font.Legacy,
-    [6] = Enum.Font.Code,       [7] = Enum.Font.Highway,
-    [8] = Enum.Font.Fantasy,    [9] = Enum.Font.Arcade
+    [0] = Enum.Font.Arial,
+    [1] = Enum.Font.BuilderSans,
+    [2] = Enum.Font.Gotham,
+    [3] = Enum.Font.RobotoMono,
+    [4] = Enum.Font.SourceSans,
+    [5] = Enum.Font.Legacy,
+    [6] = Enum.Font.Code,
+    [7] = Enum.Font.Highway,
+    [8] = Enum.Font.Fantasy,
+    [9] = Enum.Font.Arcade
 }
 
 local TweenService   = game:GetService("TweenService")
 local TextService    = game:GetService("TextService")
 local RunService     = game:GetService("RunService")
 local Players        = game:GetService("Players")
-local Camera         = workspace.CurrentCamera
 
 local function gethui()
     local success, result = pcall(function()
@@ -42,6 +46,7 @@ local Drawing = {
 }
 
 local function isVector2(v) return typeof(v) == "Vector2" end
+
 local function toUDim2(v)
     if isVector2(v) then return UDim2.fromOffset(v.X, v.Y) end
     return v
@@ -50,29 +55,20 @@ end
 local function createGradient(colors)
     if typeof(colors) == "Color3" then return nil end
     if type(colors) ~= "table" or #colors < 2 then return nil end
-    local grad = Instance.new("UIGradient")
-    grad.Color = ColorSequence.new(colors)
-    grad.Rotation = 90
-    return grad
+    
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new(colors)
+    gradient.Rotation = 90  -- можно сделать настраиваемым позже
+    return gradient
 end
 
--- World → Screen helper
-local function worldToScreen(worldPos: Vector3): (Vector2?, boolean)
-    if not Camera then return nil, false end
-    local screenPos, onScreen = Camera:WorldToViewportPoint(worldPos)
-    if onScreen and screenPos.Z > 0 then
-        return Vector2.new(screenPos.X, screenPos.Y), true
-    end
-    return nil, false
-end
-
-Drawing.new = function(drawingType: string)
+Drawing.new = function(drawingType)
     if type(drawingType) ~= "string" then
         error("Drawing.new: argument must be a string", 2)
     end
 
-    local valid = {Line=true, Square=true, Rectangle=true, Circle=true, Text=true, Image=true, Triangle=true, Quad=true}
-    if not valid[drawingType] then
+    local validTypes = {Line=true, Square=true, Rectangle=true, Circle=true, Text=true, Image=true, Triangle=true, Quad=true}
+    if not validTypes[drawingType] then
         error("Drawing.new: invalid type '" .. drawingType .. "'", 2)
     end
 
@@ -85,17 +81,12 @@ Drawing.new = function(drawingType: string)
 
     local properties = {
         Visible       = true,
-        Color         = Color3.new(1,1,1),
-        Transparency  = 0,
+        Color         = Color3.new(1,1,1),     -- Color3 | {Color3, Color3, ...}
+        Transparency  = 0,                      -- 0 = opaque, 1 = transparent
         ZIndex        = 1,
         Rotation      = 0,
         AnchorPoint   = Vector2.new(0,0),
         FadeDuration  = 0.25,
-
-        -- Dashed lines support
-        Dashed        = false,
-        DashLength    = 6,
-        GapLength     = 4,
     }
 
     local self = newproxy(true)
@@ -105,13 +96,15 @@ Drawing.new = function(drawingType: string)
     local fadeTweenInfo = TweenInfo.new(properties.FadeDuration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 
     local function updateFade()
-        local target = properties.Visible and (1 - properties.Transparency) or 1
-        local tween = TweenService:Create(mainObj, fadeTweenInfo, {BackgroundTransparency = target})
+        local targetTrans = properties.Visible and (1 - properties.Transparency) or 1
+        local tween = TweenService:Create(mainObj, fadeTweenInfo, {BackgroundTransparency = targetTrans})
         tween:Play()
     end
 
     mt.__index = function(_, key)
         if key == "__OBJECT_EXISTS" then return not removed end
+        if key == "Transparency" then return properties.Transparency end
+        if key == "Visible" then return properties.Visible end
         return properties[key]
     end
 
@@ -127,12 +120,17 @@ Drawing.new = function(drawingType: string)
             if properties.Visible then
                 mainObj.BackgroundTransparency = 1 - properties.Transparency
             end
-        elseif key == "Color" or key == "ZIndex" or key == "Rotation" or key == "AnchorPoint" or
-               key == "FadeDuration" or key == "Dashed" or key == "DashLength" or key == "GapLength" then
-            properties[key] = value
-            if key == "FadeDuration" then
-                fadeTweenInfo = TweenInfo.new(value, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-            end
+        elseif key == "Color" then
+            properties.Color = value
+        elseif key == "ZIndex" then
+            mainObj.ZIndex = value
+        elseif key == "Rotation" then
+            mainObj.Rotation = value
+        elseif key == "AnchorPoint" then
+            mainObj.AnchorPoint = value
+        elseif key == "FadeDuration" then
+            properties.FadeDuration = math.max(0, value or 0.25)
+            fadeTweenInfo = TweenInfo.new(properties.FadeDuration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
         else
             properties[key] = value
         end
@@ -146,116 +144,60 @@ Drawing.new = function(drawingType: string)
         removed = true
         if mainObj and mainObj.Parent then mainObj:Destroy() end
         for i = #DrawingCache, 1, -1 do
-            if DrawingCache[i].proxy == self then table.remove(DrawingCache, i) break end
+            if DrawingCache[i].proxy == self then
+                table.remove(DrawingCache, i)
+                break
+            end
         end
         DrawingObjects[self] = nil
     end
     properties.Destroy = properties.Remove
 
-    -- World → Screen methods
-    properties.WorldToScreen = function(_, worldPos: Vector3)
-        return worldToScreen(worldPos)
-    end
-
-    properties.IsOnScreen = function(_, screenPos: Vector2?)
-        if not screenPos then return false end
-        local vpSize = Camera.ViewportSize
-        return screenPos.X >= 0 and screenPos.X <= vpSize.X and
-               screenPos.Y >= 0 and screenPos.Y <= vpSize.Y
+    -- Метод для получения экранных координат центра объекта
+    properties.GetScreenPosition = function()
+        if removed or not mainObj.AbsolutePosition then return Vector2.zero end
+        local absPos = mainObj.AbsolutePosition
+        local absSize = mainObj.AbsoluteSize
+        return absPos + absSize / 2
     end
 
     table.insert(DrawingCache, {proxy = self, instance = mainObj})
     DrawingObjects[self] = true
 
-    -- ────────────────────────────────────────────────
-    -- Line with dashed support
-    -- ────────────────────────────────────────────────
     if drawingType == "Line" then
         mainObj.AnchorPoint = Vector2.new(0.5, 0.5)
 
-        properties.From      = Vector2.zero
-        properties.To        = Vector2.zero
+        properties.From     = Vector2.zero
+        properties.To       = Vector2.zero
         properties.Thickness = 1
 
-        local segments = {}
-
-        local function clearSegments()
-            for _, seg in ipairs(segments) do
-                if seg and seg.Parent then seg:Destroy() end
-            end
-            segments = {}
-        end
-
-        local function createDashedLine(from: Vector2, to: Vector2)
-            clearSegments()
-
-            local dir = (to - from).Unit
-            local totalLength = (to - from).Magnitude
-            local step = properties.DashLength + properties.GapLength
-
-            if not properties.Dashed or step <= 0 then
-                -- Solid line
-                local bar = Instance.new("Frame")
-                bar.AnchorPoint = Vector2.new(0.5, 0.5)
-                bar.BackgroundColor3 = properties.Color
-                bar.BackgroundTransparency = properties.Visible and (1 - properties.Transparency) or 1
-                bar.Size = UDim2.fromOffset(totalLength, properties.Thickness)
-                bar.Position = toUDim2((from + to)/2)
-                bar.Rotation = math.deg(math.atan2(to.Y - from.Y, to.X - from.X))
-                bar.ZIndex = properties.ZIndex
-                bar.Parent = mainObj
-                table.insert(segments, bar)
-                return
-            end
-
-            local currentDist = 0
-            while currentDist < totalLength do
-                local segStart = from + dir * currentDist
-                local segEndDist = math.min(currentDist + properties.DashLength, totalLength)
-                local segEnd = from + dir * segEndDist
-
-                local segLen = (segEnd - segStart).Magnitude
-                if segLen < 0.5 then break end
-
-                local bar = Instance.new("Frame")
-                bar.AnchorPoint = Vector2.new(0.5, 0.5)
-                bar.BackgroundColor3 = properties.Color
-                bar.BackgroundTransparency = properties.Visible and (1 - properties.Transparency) or 1
-                bar.Size = UDim2.fromOffset(segLen, properties.Thickness)
-                bar.Position = toUDim2((segStart + segEnd)/2)
-                bar.Rotation = math.deg(math.atan2(to.Y - from.Y, to.X - from.X))
-                bar.ZIndex = properties.ZIndex
-                bar.Parent = mainObj
-
-                table.insert(segments, bar)
-
-                currentDist = currentDist + step
-            end
-        end
-
-        local updateLine = function()
+        local update = function()
             if removed then return end
-            clearSegments()
-            createDashedLine(properties.From, properties.To)
+            local f, t = properties.From, properties.To
+            local dx, dy = t.X - f.X, t.Y - f.Y
+            local len = math.sqrt(dx*dx + dy*dy)
+
+            mainObj.Size = UDim2.fromOffset(len, properties.Thickness)
+            mainObj.Position = toUDim2((f + t)/2)
+            mainObj.Rotation = math.deg(math.atan2(dy, dx))
+            mainObj.BackgroundColor3 = properties.Color
+            mainObj.BackgroundTransparency = properties.Visible and (1 - properties.Transparency) or 1
         end
 
         local oldNewindex = mt.__newindex
         mt.__newindex = function(t, k, v)
             oldNewindex(t, k, v)
-            if k == "From" or k == "To" or k == "Thickness" or k == "Color" or k == "Transparency" or
-               k == "Visible" or k == "Dashed" or k == "DashLength" or k == "GapLength" or k == "ZIndex" then
-                task.defer(updateLine)
+            if k == "From" or k == "To" or k == "Thickness" or k == "Color" or k == "Transparency" or k == "Visible" then
+                update()
             end
         end
 
-        updateLine()
+        update()
 
-    -- ────────────────────────────────────────────────
-    -- Square / Rectangle
-    -- ────────────────────────────────────────────────
     elseif drawingType == "Square" or drawingType == "Rectangle" then
         local stroke = Instance.new("UIStroke", mainObj)
         stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        stroke.Transparency = 0
 
         local corner = Instance.new("UICorner", mainObj)
 
@@ -285,9 +227,11 @@ Drawing.new = function(drawingType: string)
             end
 
             local grad = createGradient(properties.Color)
-            if grad then grad.Parent = mainObj else
-                local oldGrad = mainObj:FindFirstChildOfClass("UIGradient")
-                if oldGrad then oldGrad:Destroy() end
+            if grad then
+                grad.Parent = mainObj
+                mainObj.BackgroundColor3 = Color3.new(1,1,1) -- градиент перехватывает
+            elseif mainObj:FindFirstChildOfClass("UIGradient") then
+                mainObj:FindFirstChildOfClass("UIGradient"):Destroy()
             end
         end
 
@@ -295,52 +239,212 @@ Drawing.new = function(drawingType: string)
         mt.__newindex = function(t,k,v)
             old(t,k,v)
             if k=="Position" or k=="Size" or k=="Filled" or k=="Thickness" or k=="Color" or
-               k=="Transparency" or k=="CornerRadius" or k=="Rotation" or k=="AnchorPoint" or
-               k=="Visible" or k=="ZIndex" then
-                task.defer(update)
+               k=="Transparency" or k=="CornerRadius" or k=="Rotation" or k=="AnchorPoint" or k=="Visible" then
+                update()
             end
         end
 
         update()
 
-    -- Остальные типы (Circle, Text, Image, Triangle, Quad) остаются почти без изменений
-    -- Для краткости опущены здесь, но в полной версии их нужно вставить из предыдущей версии
+    elseif drawingType == "Circle" then
+        local stroke = Instance.new("UIStroke", mainObj)
+        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-    -- Triangle и Quad с dashed (очень упрощённо — dashed применяется ко всем сторонам)
+        local corner = Instance.new("UICorner", mainObj)
+        corner.CornerRadius = UDim.new(0.5, 0)
+
+        properties.Position = Vector2.zero
+        properties.Radius   = 50
+        properties.Filled   = true
+        properties.Thickness = 1
+
+        local update = function()
+            local diam = properties.Radius * 2
+            mainObj.Size = UDim2.fromOffset(diam, diam)
+            mainObj.Position = toUDim2(properties.Position - Vector2.new(properties.Radius, properties.Radius))
+            mainObj.Rotation = properties.Rotation
+            mainObj.AnchorPoint = properties.AnchorPoint
+
+            if properties.Filled then
+                mainObj.BackgroundColor3 = properties.Color
+                mainObj.BackgroundTransparency = properties.Visible and (1 - properties.Transparency) or 1
+                stroke.Enabled = false
+            else
+                mainObj.BackgroundTransparency = 1
+                stroke.Enabled = true
+                stroke.Color = properties.Color
+                stroke.Thickness = properties.Thickness
+                stroke.Transparency = properties.Visible and (1 - properties.Transparency) or 1
+            end
+
+            local grad = createGradient(properties.Color)
+            if grad then grad.Parent = mainObj end
+        end
+
+        local old = mt.__newindex
+        mt.__newindex = function(t,k,v)
+            old(t,k,v)
+            if k=="Radius" or k=="Position" or k=="Filled" or k=="Thickness" or k=="Color" or
+               k=="Transparency" or k=="Rotation" or k=="AnchorPoint" or k=="Visible" then
+                update()
+            end
+        end
+
+        update()
+
+    elseif drawingType == "Text" then
+        mainObj:Destroy()
+        mainObj = Instance.new("TextLabel")
+        mainObj.BackgroundTransparency = 1
+        mainObj.BorderSizePixel = 0
+        mainObj.AutomaticSize = Enum.AutomaticSize.XY
+        mainObj.TextXAlignment = Enum.TextXAlignment.Left
+        mainObj.TextYAlignment = Enum.TextYAlignment.Top
+        mainObj.Parent = UI
+
+        properties.Text         = ""
+        properties.Position     = Vector2.zero
+        properties.Size         = Vector2.new(0, 13)   -- если X>0 и Y>0 → фиксированный размер + wrap
+        properties.Font         = 2
+        properties.Center       = false
+        properties.Outline      = false
+        properties.OutlineColor = Color3.new(0,0,0)
+        properties.TextWrapped  = false
+
+        local function updateBounds()
+            if properties.Size.X <= 0 or properties.Size.Y <= 0 then
+                mainObj.AutomaticSize = Enum.AutomaticSize.XY
+                mainObj.TextWrapped = false
+            else
+                mainObj.Size = toUDim2(properties.Size)
+                mainObj.AutomaticSize = Enum.AutomaticSize.None
+                mainObj.TextWrapped = properties.TextWrapped
+            end
+
+            local font = Fonts[properties.Font] or Enum.Font.Code
+            local textSize = properties.Size.Y > 0 and properties.Size.Y or 13
+
+            local params = GetTextBoundsParams.new()
+            params.Text = tostring(properties.Text)
+            params.Font = font
+            params.TextSize = textSize
+            params.Width = properties.Size.X > 0 and properties.Size.X or math.huge
+
+            local bounds = TextService:GetTextSizeAsync(params)
+            properties.TextBounds = bounds
+        end
+
+        local update = function()
+            mainObj.Text = tostring(properties.Text)
+            mainObj.TextSize = properties.Size.Y > 0 and properties.Size.Y or 13
+            mainObj.Position = toUDim2(properties.Position)
+            mainObj.TextColor3 = properties.Color
+            mainObj.TextTransparency = properties.Visible and (1 - properties.Transparency) or 1
+            mainObj.Font = Fonts[properties.Font] or Enum.Font.Code
+            mainObj.Rotation = properties.Rotation
+            mainObj.AnchorPoint = properties.AnchorPoint
+
+            if properties.Center then
+                mainObj.TextXAlignment = Enum.TextXAlignment.Center
+                mainObj.TextYAlignment = Enum.TextYAlignment.Center
+            else
+                mainObj.TextXAlignment = Enum.TextXAlignment.Left
+                mainObj.TextYAlignment = Enum.TextYAlignment.Top
+            end
+
+            if properties.Outline then
+                mainObj.TextStrokeTransparency = 0
+                mainObj.TextStrokeColor3 = properties.OutlineColor
+            else
+                mainObj.TextStrokeTransparency = 1
+            end
+
+            updateBounds()
+        end
+
+        local old = mt.__newindex
+        mt.__newindex = function(t,k,v)
+            old(t,k,v)
+            if k ~= "TextBounds" then
+                task.spawn(update)  -- асинхронно, чтобы не блокировать
+            end
+        end
+
+        update()
+
+    elseif drawingType == "Image" then
+        mainObj:Destroy()
+        mainObj = Instance.new("ImageLabel")
+        mainObj.BackgroundTransparency = 1
+        mainObj.BorderSizePixel = 0
+        mainObj.Parent = UI
+
+        local corner = Instance.new("UICorner", mainObj)
+
+        properties.Data     = ""
+        properties.Size     = Vector2.new(100, 100)
+        properties.Position = Vector2.zero
+        properties.Rounding = 0
+
+        local update = function()
+            mainObj.Image = properties.Data
+            mainObj.Size = toUDim2(properties.Size)
+            mainObj.Position = toUDim2(properties.Position)
+            mainObj.ImageTransparency = properties.Visible and (1 - properties.Transparency) or 1
+            mainObj.ImageColor3 = properties.Color
+            mainObj.Rotation = properties.Rotation
+            mainObj.AnchorPoint = properties.AnchorPoint
+            corner.CornerRadius = UDim.new(0, properties.Rounding)
+        end
+
+        local old = mt.__newindex
+        mt.__newindex = function(t,k,v)
+            old(t,k,v)
+            if k=="Data" or k=="Size" or k=="Position" or k=="Transparency" or k=="Color" or
+               k=="Rounding" or k=="Rotation" or k=="AnchorPoint" or k=="Visible" then
+                update()
+            end
+        end
+
+        update()
+
     elseif drawingType == "Triangle" or drawingType == "Quad" then
+        -- Оставляем только контур (Filled не поддерживается надёжно)
+        -- Если нужен Filled → используй ImageLabel с заранее подготовленным изображением
+
         mainObj.BackgroundTransparency = 1
 
-        local pointCount = drawingType == "Triangle" and 3 or 4
         local lines = {}
+        local pointCount = (drawingType == "Triangle") and 3 or 4
 
         for i = 1, pointCount do
             local ln = Instance.new("Frame")
             ln.AnchorPoint = Vector2.new(0.5, 0.5)
             ln.BackgroundColor3 = Color3.new(1,1,1)
             ln.BorderSizePixel = 0
-            ln.ZIndex = properties.ZIndex
             ln.Parent = mainObj
             lines[i] = ln
         end
 
-        for i = 1, pointCount do
-            properties["Point"..string.char(64 + i)] = Vector2.zero
+        for k, v in pairs({"PointA","PointB","PointC","PointD"}) do
+            properties[v] = (k <= pointCount) and Vector2.zero or nil
         end
         properties.Thickness = 1
 
         local function getPoints()
-            local pts = {}
-            for i = 1, pointCount do
-                pts[i] = properties["Point"..string.char(64 + i)]
+            if drawingType == "Triangle" then
+                return {properties.PointA, properties.PointB, properties.PointC}
+            else
+                return {properties.PointA, properties.PointB, properties.PointC, properties.PointD}
             end
-            return pts
         end
 
-        local function update()
+        local update = function()
             local pts = getPoints()
-            local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
+            local minX, minY = math.huge, math.huge
+            local maxX, maxY = -math.huge, -math.huge
 
-            for _, p in pts do
+            for _, p in ipairs(pts) do
                 minX = math.min(minX, p.X)
                 minY = math.min(minY, p.Y)
                 maxX = math.max(maxX, p.X)
@@ -348,37 +452,37 @@ Drawing.new = function(drawingType: string)
             end
 
             mainObj.Position = UDim2.fromOffset(minX, minY)
-            mainObj.Size = UDim2.fromOffset(maxX-minX, maxY-minY)
+            mainObj.Size = UDim2.fromOffset(maxX - minX, maxY - minY)
             mainObj.Rotation = properties.Rotation
             mainObj.AnchorPoint = properties.AnchorPoint
 
             if properties.Filled then
-                warn("Filled not reliably supported for " .. drawingType)
+                warn("Filled not supported for " .. drawingType .. " (use Image instead)")
             end
 
             for i = 1, pointCount do
                 local p1 = pts[i]
-                local p2 = pts[(i % pointCount)+1]
-                local dx, dy = p2.X - p1.X, p2.Y - p1.Y
+                local p2 = pts[(i % pointCount) + 1]
+
+                local dx = p2.X - p1.X
+                local dy = p2.Y - p1.Y
                 local len = math.sqrt(dx*dx + dy*dy)
 
                 local ln = lines[i]
                 ln.Size = UDim2.fromOffset(len, properties.Thickness)
-                ln.Position = toUDim2( Vector2.new( (p1.X+p2.X)/2 - minX, (p1.Y+p2.Y)/2 - minY ) )
+                ln.Position = toUDim2(Vector2.new((p1.X + p2.X)/2, (p1.Y + p2.Y)/2) - Vector2.new(minX, minY))
                 ln.Rotation = math.deg(math.atan2(dy, dx))
                 ln.BackgroundColor3 = properties.Color
                 ln.BackgroundTransparency = properties.Visible and (1 - properties.Transparency) or 1
-                ln.ZIndex = properties.ZIndex
             end
         end
 
         local old = mt.__newindex
         mt.__newindex = function(t,k,v)
             old(t,k,v)
-            if k:match("^Point") or k=="Thickness" or k=="Color" or k=="Transparency" or
-               k=="Rotation" or k=="AnchorPoint" or k=="Visible" or k=="ZIndex" or
-               k=="Dashed" or k=="DashLength" or k=="GapLength" then
-                task.defer(update)
+            if (k:match("^Point") or k=="Thickness" or k=="Color" or k=="Transparency" or
+                k=="Rotation" or k=="AnchorPoint" or k=="Visible" or k=="Filled") then
+                update()
             end
         end
 
@@ -390,11 +494,19 @@ end
 
 getgenv().Drawing = Drawing
 
-getgenv().isrenderobj     = function(obj) return type(obj)=="userdata" and pcall(function() return obj.__OBJECT_EXISTS end) end
-getgenv().cleardrawcache  = function()
-    for i=#DrawingCache,1,-1 do pcall(DrawingCache[i].proxy.Remove, DrawingCache[i].proxy) end
+getgenv().isrenderobj = function(obj)
+    if type(obj) ~= "userdata" then return false end
+    local s, ex = pcall(function() return obj.__OBJECT_EXISTS end)
+    return s and ex == true
+end
+
+getgenv().cleardrawcache = function()
+    for i = #DrawingCache, 1, -1 do
+        pcall(function() DrawingCache[i].proxy:Remove() end)
+    end
     DrawingCache = {}
     DrawingObjects = {}
 end
-getgenv().getrenderproperty = function(obj, p) return isrenderobj(obj) and obj[p] or nil end
-getgenv().setrenderproperty = function(obj, p, v) if isrenderobj(obj) then obj[p] = v end end
+
+getgenv().getrenderproperty  = function(obj, prop) return isrenderobj(obj) and obj[prop] or nil end
+getgenv().setrenderproperty  = function(obj, prop, val) if isrenderobj(obj) then obj[prop] = val end end
