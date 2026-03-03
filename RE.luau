@@ -1,4 +1,7 @@
--- Improved Drawing Library for Roblox Executor
+-- ============================================
+-- FIXED DRAWING LIBRARY FOR ROBLOX EXECUTOR
+-- ============================================
+
 local DrawingCache = {}
 local DrawingObjects = {}
 
@@ -56,39 +59,6 @@ local function angle(p1, p2)
     return math.deg(math.atan2(dy, dx))
 end
 
--- Dirty flag system for better performance
-local function createPropertySystem()
-    local properties = {}
-    local dirty = false
-    local dirtyProps = {}
-    
-    return {
-        set = function(key, value)
-            if properties[key] ~= value then
-                properties[key] = value
-                dirtyProps[key] = true
-                dirty = true
-            end
-        end,
-        get = function(key)
-            return properties[key]
-        end,
-        isDirty = function()
-            return dirty
-        end,
-        getDirty = function()
-            return dirtyProps
-        end,
-        clearDirty = function()
-            dirty = false
-            dirtyProps = {}
-        end,
-        getAll = function()
-            return properties
-        end
-    }
-end
-
 Drawing.new = function(drawingType)
     if type(drawingType) ~= "string" then
         error("Drawing.new: argument must be a string, got " .. type(drawingType), 2)
@@ -102,10 +72,7 @@ Drawing.new = function(drawingType)
         Text = true,
         Image = true,
         Triangle = true,
-        Quad = true,
-        Polygon = true,
-        Ellipse = true,
-        Arc = true
+        Quad = true
     }
     
     if not validTypes[drawingType] then
@@ -118,8 +85,6 @@ Drawing.new = function(drawingType)
     drawingObj.Size = UDim2.fromOffset(0, 0)
     drawingObj.Position = UDim2.fromOffset(0, 0)
     drawingObj.Parent = UI
-    
-    local propSystem = createPropertySystem()
     
     local properties = {
         Visible = true,
@@ -134,7 +99,6 @@ Drawing.new = function(drawingType)
     local mt = getmetatable(self)
     
     local removed = false
-    local updateCallbacks = {}
     
     mt.__index = function(_, key)
         if key == "__OBJECT_EXISTS" then
@@ -155,14 +119,6 @@ Drawing.new = function(drawingType)
         end
         
         properties[key] = value
-        propSystem.set(key, value)
-        
-        -- Trigger callbacks
-        for callback in pairs(updateCallbacks) do
-            if callback(key, value) then
-                break
-            end
-        end
     end
     
     mt.__tostring = function()
@@ -211,42 +167,8 @@ Drawing.new = function(drawingType)
         end
     end
     
-    properties.GetBounds = function()
-        if drawingType == "Line" then
-            local from = properties.From
-            local to = properties.To
-            return {
-                TopLeft = Vector2.new(math.min(from.X, to.X), math.min(from.Y, to.Y)),
-                BottomRight = Vector2.new(math.max(from.X, to.X), math.max(from.Y, to.Y))
-            }
-        elseif drawingType == "Circle" then
-            local pos = properties.Position
-            local radius = properties.Radius
-            return {
-                TopLeft = Vector2.new(pos.X - radius, pos.Y - radius),
-                BottomRight = Vector2.new(pos.X + radius, pos.Y + radius)
-            }
-        elseif drawingType == "Rectangle" or drawingType == "Square" then
-            return {
-                TopLeft = properties.Position,
-                BottomRight = properties.Position + properties.Size
-            }
-        end
-        return nil
-    end
-    
-    properties.PointInBounds = function(point)
-        local bounds = properties.GetBounds()
-        if not bounds then return false end
-        
-        return point.X >= bounds.TopLeft.X and point.X <= bounds.BottomRight.X and
-               point.Y >= bounds.TopLeft.Y and point.Y <= bounds.BottomRight.Y
-    end
-    
     table.insert(DrawingCache, {proxy = self, instance = drawingObj})
     DrawingObjects[self] = true
-    
-    local updateCallbacks_mt = {}
     
     -- Line drawing
     if drawingType == "Line" then
@@ -268,21 +190,20 @@ Drawing.new = function(drawingType)
             drawingObj.Size = UDim2.fromOffset(length, properties.Thickness)
             drawingObj.Position = UDim2.fromOffset((from.X + to.X) / 2, (from.Y + to.Y) / 2)
             drawingObj.Rotation = angle(from, to)
-            drawingObj.BackgroundTransparency = 1 - (properties.Opacity or (1 - properties.Transparency))
+            drawingObj.BackgroundTransparency = 1 - properties.Opacity
             drawingObj.BackgroundColor3 = properties.Color
         end
         
-        -- Add line-specific methods
         properties.SetLinePoints = function(p1, p2)
             properties.From = p1
             properties.To = p2
+            updateLine()
         end
         
         properties.GetLength = function()
             return distance(properties.From, properties.To)
         end
         
-        updateCallbacks[updateLine] = true
         updateLine()
         
     -- Rectangle/Square drawing
@@ -305,7 +226,7 @@ Drawing.new = function(drawingType)
             drawingObj.Rotation = properties.Rotation or 0
             
             if properties.Filled then
-                drawingObj.BackgroundTransparency = 1 - (properties.Opacity or (1 - properties.Transparency))
+                drawingObj.BackgroundTransparency = 1 - properties.Opacity
                 drawingObj.BackgroundColor3 = properties.Color
                 stroke.Enabled = false
             else
@@ -313,27 +234,29 @@ Drawing.new = function(drawingType)
                 stroke.Enabled = true
                 stroke.Color = properties.Color
                 stroke.Thickness = properties.Thickness
-                stroke.Transparency = 1 - (properties.Opacity or (1 - properties.Transparency))
+                stroke.Transparency = 1 - properties.Opacity
             end
         end
         
         properties.SetRectangle = function(pos, size)
             properties.Position = pos
             properties.Size = size
+            updateSquare()
         end
         
         properties.SetOutlineOnly = function(thickness, color)
             properties.Filled = false
             properties.Thickness = thickness
             if color then properties.Color = color end
+            updateSquare()
         end
         
         properties.SetFilled = function(color)
             properties.Filled = true
             if color then properties.Color = color end
+            updateSquare()
         end
         
-        updateCallbacks[updateSquare] = true
         updateSquare()
         
     -- Circle drawing
@@ -350,7 +273,6 @@ Drawing.new = function(drawingType)
         properties.Position = Vector2.zero
         properties.Filled = false
         properties.Thickness = 1
-        properties.NumSides = 64
         
         local updateCircle = function()
             if removed then return end
@@ -360,7 +282,7 @@ Drawing.new = function(drawingType)
             drawingObj.Position = UDim2.fromOffset(properties.Position.X - properties.Radius, properties.Position.Y - properties.Radius)
             
             if properties.Filled then
-                drawingObj.BackgroundTransparency = 1 - (properties.Opacity or (1 - properties.Transparency))
+                drawingObj.BackgroundTransparency = 1 - properties.Opacity
                 drawingObj.BackgroundColor3 = properties.Color
                 stroke.Enabled = false
             else
@@ -368,13 +290,14 @@ Drawing.new = function(drawingType)
                 stroke.Enabled = true
                 stroke.Color = properties.Color
                 stroke.Thickness = properties.Thickness
-                stroke.Transparency = 1 - (properties.Opacity or (1 - properties.Transparency))
+                stroke.Transparency = 1 - properties.Opacity
             end
         end
         
         properties.SetCircle = function(center, radius)
             properties.Position = center
             properties.Radius = radius
+            updateCircle()
         end
         
         properties.GetCircumference = function()
@@ -385,50 +308,7 @@ Drawing.new = function(drawingType)
             return math.pi * properties.Radius * properties.Radius
         end
         
-        updateCallbacks[updateCircle] = true
         updateCircle()
-        
-    -- Ellipse drawing
-    elseif drawingType == "Ellipse" then
-        local stroke = Instance.new("UIStroke")
-        stroke.Parent = drawingObj
-        stroke.Thickness = 1
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0.5, 0)
-        corner.Parent = drawingObj
-        
-        properties.RadiusX = 50
-        properties.RadiusY = 30
-        properties.Position = Vector2.zero
-        properties.Filled = false
-        properties.Thickness = 1
-        
-        local updateEllipse = function()
-            if removed then return end
-            
-            local diameterX = properties.RadiusX * 2
-            local diameterY = properties.RadiusY * 2
-            
-            drawingObj.Size = UDim2.fromOffset(diameterX, diameterY)
-            drawingObj.Position = UDim2.fromOffset(properties.Position.X - properties.RadiusX, properties.Position.Y - properties.RadiusY)
-            drawingObj.Rotation = properties.Rotation or 0
-            
-            if properties.Filled then
-                drawingObj.BackgroundTransparency = 1 - (properties.Opacity or (1 - properties.Transparency))
-                drawingObj.BackgroundColor3 = properties.Color
-                stroke.Enabled = false
-            else
-                drawingObj.BackgroundTransparency = 1
-                stroke.Enabled = true
-                stroke.Color = properties.Color
-                stroke.Thickness = properties.Thickness
-                stroke.Transparency = 1 - (properties.Opacity or (1 - properties.Transparency))
-            end
-        end
-        
-        updateCallbacks[updateEllipse] = true
-        updateEllipse()
         
     -- Text drawing
     elseif drawingType == "Text" then
@@ -461,7 +341,7 @@ Drawing.new = function(drawingType)
             drawingObj.TextSize = properties.Size
             drawingObj.Position = UDim2.fromOffset(properties.Position.X, properties.Position.Y)
             drawingObj.TextColor3 = properties.Color
-            drawingObj.TextTransparency = 1 - (properties.Opacity or (1 - properties.Transparency))
+            drawingObj.TextTransparency = 1 - properties.Opacity
             drawingObj.Font = Fonts[properties.Font] or Enum.Font.Code
             drawingObj.Rotation = properties.Rotation or 0
             
@@ -474,27 +354,27 @@ Drawing.new = function(drawingType)
             end
             
             if properties.Outline then
-                drawingObj.TextStrokeTransparency = 1 - (properties.Opacity or (1 - properties.Transparency))
+                drawingObj.TextStrokeTransparency = 1 - properties.Opacity
                 drawingObj.TextStrokeColor3 = properties.OutlineColor
                 drawingObj.TextStrokeSize = properties.OutlineSize or 1
             else
                 drawingObj.TextStrokeTransparency = 1
             end
             
-            game:GetService("RunService").RenderStepped:Wait()
+            -- Update text bounds synchronously
             properties.TextBounds = drawingObj.TextBounds
         end
         
         properties.SetText = function(text)
             properties.Text = tostring(text)
+            updateText()
         end
         
         properties.GetTextBounds = function()
             return properties.TextBounds
         end
         
-        updateCallbacks[updateText] = true
-        task.spawn(updateText)
+        updateText()
         
     -- Image drawing
     elseif drawingType == "Image" then
@@ -508,7 +388,6 @@ Drawing.new = function(drawingType)
         properties.Data = ""
         properties.Size = Vector2.zero
         properties.Position = Vector2.zero
-        properties.Rounding = 0
         
         local updateImage = function()
             if removed then return end
@@ -516,7 +395,7 @@ Drawing.new = function(drawingType)
             drawingObj.Image = properties.Data
             drawingObj.Size = UDim2.fromOffset(properties.Size.X, properties.Size.Y)
             drawingObj.Position = UDim2.fromOffset(properties.Position.X, properties.Position.Y)
-            drawingObj.ImageTransparency = 1 - (properties.Opacity or (1 - properties.Transparency))
+            drawingObj.ImageTransparency = 1 - properties.Opacity
             drawingObj.ImageColor3 = properties.Color
             drawingObj.Rotation = properties.Rotation or 0
         end
@@ -525,9 +404,9 @@ Drawing.new = function(drawingType)
             properties.Data = imageId
             if size then properties.Size = size end
             if position then properties.Position = position end
+            updateImage()
         end
         
-        updateCallbacks[updateImage] = true
         updateImage()
     end
     
@@ -577,9 +456,19 @@ getgenv().setrenderproperty = function(obj, prop, value)
     obj[prop] = value
 end
 
--- Additional utility functions
+-- Utility functions
 getgenv().drawingutil = {
-    -- Color utilities
+    Distance = distance,
+    Angle = angle,
+    
+    GetCacheSize = function()
+        return #DrawingCache
+    end,
+    
+    GetDrawingObjects = function()
+        return DrawingObjects
+    end,
+    
     HSVtoRGB = function(h, s, v)
         h = h % 360
         local c = v * s
@@ -598,46 +487,11 @@ getgenv().drawingutil = {
         return Color3.new(r + m, g + m, b + m)
     end,
     
-    RGBtoHSV = function(color)
-        local r, g, b = color.R, color.G, color.B
-        local max = math.max(r, g, b)
-        local min = math.min(r, g, b)
-        local delta = max - min
-        
-        local h = 0
-        if delta ~= 0 then
-            if max == r then h = ((g - b) / delta) % 6
-            elseif max == g then h = (b - r) / delta + 2
-            else h = (r - g) / delta + 4
-            end
-            h = h * 60
-        end
-        
-        local s = max == 0 and 0 or delta / max
-        local v = max
-        
-        return h, s, v
-    end,
-    
     LerpColor = function(c1, c2, t)
         return Color3.new(
             lerp(c1.R, c2.R, t),
             lerp(c1.G, c2.G, t),
             lerp(c1.B, c2.B, t)
         )
-    end,
-    
-    -- Geometry utilities
-    Distance = distance,
-    Angle = angle,
-    
-    -- Cache functions
-    GetCacheSize = function()
-        return #DrawingCache
-    end,
-    
-    GetDrawingObjects = function()
-        return DrawingObjects
     end
 }
-
