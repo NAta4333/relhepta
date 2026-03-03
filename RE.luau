@@ -5,13 +5,7 @@ local Fonts = {
     [0] = Enum.Font.Arial,
     [1] = Enum.Font.BuilderSans,
     [2] = Enum.Font.Gotham,
-    [3] = Enum.Font.RobotoMono,
-    [4] = Enum.Font.SourceSans,
-    [5] = Enum.Font.Legacy,
-    [6] = Enum.Font.Code,
-    [7] = Enum.Font.Highway,
-    [8] = Enum.Font.Fantasy,
-    [9] = Enum.Font.Arcade
+    [3] = Enum.Font.RobotoMono
 }
 
 local function gethui()
@@ -34,13 +28,7 @@ local Drawing = {
         UI = 0,
         System = 1,
         Plex = 2,
-        Monospace = 3,
-        SourceSans = 4,
-        Legacy = 5,
-        Code = 6,
-        Highway = 7,
-        Fantasy = 8,
-        Arcade = 9
+        Monospace = 3
     }
 }
 
@@ -75,9 +63,7 @@ Drawing.new = function(drawingType)
         Visible = true,
         Color = Color3.new(1, 1, 1),
         Transparency = 1,
-        ZIndex = 1,
-        Rotation = 0,
-        AnchorPoint = Vector2.new(0, 0)
+        ZIndex = 1
     }
     
     local self = newproxy(true)
@@ -109,10 +95,6 @@ Drawing.new = function(drawingType)
             drawingObj.BackgroundTransparency = 1 - value
         elseif key == "ZIndex" then
             drawingObj.ZIndex = value
-        elseif key == "Rotation" then
-            drawingObj.Rotation = value
-        elseif key == "AnchorPoint" then
-            drawingObj.AnchorPoint = value
         end
     end
     
@@ -143,10 +125,6 @@ Drawing.new = function(drawingType)
     
     properties.Destroy = properties.Remove
     
-    properties.Clear = function()
-        -- Clears any child elements if applicable, but for most, no-op
-    end
-    
     table.insert(DrawingCache, {proxy = self, instance = drawingObj})
     DrawingObjects[self] = true
     
@@ -171,15 +149,12 @@ Drawing.new = function(drawingType)
             drawingObj.Rotation = math.deg(math.atan2(dy, dx))
             drawingObj.BackgroundTransparency = 1 - properties.Transparency
             drawingObj.BackgroundColor3 = properties.Color
-            drawingObj.AnchorPoint = Vector2.new(0.5, 0.5)  -- Override user AnchorPoint for lines
         end
         
         local oldNewindex = mt.__newindex
         mt.__newindex = function(t, k, v)
-            if k ~= "Rotation" and k ~= "AnchorPoint" then  -- Ignore Rotation and AnchorPoint for Line
-                oldNewindex(t, k, v)
-            end
-            if k == "From" or k == "To" or k == "Thickness" or k == "Color" or k == "Transparency" then
+            oldNewindex(t, k, v)
+            if k == "From" or k == "To" or k == "Thickness" then
                 updateLine()
             end
         end
@@ -189,28 +164,17 @@ Drawing.new = function(drawingType)
         stroke.Parent = drawingObj
         stroke.Thickness = 1
         stroke.Color = Color3.new(1, 1, 1)
-        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        stroke.Transparency = 0
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 0)
-        corner.Parent = drawingObj
         
         properties.Size = Vector2.zero
         properties.Position = Vector2.zero
-        properties.Filled = true
+        properties.Filled = false
         properties.Thickness = 1
-        properties.CornerRadius = 0
         
         local updateSquare = function()
             if removed then return end
             
             drawingObj.Size = UDim2.fromOffset(properties.Size.X, properties.Size.Y)
             drawingObj.Position = UDim2.fromOffset(properties.Position.X, properties.Position.Y)
-            drawingObj.Rotation = properties.Rotation
-            drawingObj.AnchorPoint = properties.AnchorPoint
-            
-            corner.CornerRadius = UDim.new(0, properties.CornerRadius)
             
             if properties.Filled then
                 drawingObj.BackgroundTransparency = 1 - properties.Transparency
@@ -228,7 +192,7 @@ Drawing.new = function(drawingType)
         local oldNewindex = mt.__newindex
         mt.__newindex = function(t, k, v)
             oldNewindex(t, k, v)
-            if k == "Size" or k == "Position" or k == "Filled" or k == "Thickness" or k == "Color" or k == "Transparency" or k == "CornerRadius" or k == "Rotation" or k == "AnchorPoint" then
+            if k == "Size" or k == "Position" or k == "Filled" or k == "Thickness" or k == "Color" or k == "Transparency" then
                 updateSquare()
             end
         end
@@ -237,27 +201,23 @@ Drawing.new = function(drawingType)
         local stroke = Instance.new("UIStroke")
         stroke.Parent = drawingObj
         stroke.Thickness = 1
-        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        stroke.Transparency = 0
         
         local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0.5, 0)
+        corner.CornerRadius = UDim.new(1, 0)
         corner.Parent = drawingObj
         
         properties.Radius = 50
         properties.Position = Vector2.zero
-        properties.Filled = true
+        properties.Filled = false
         properties.Thickness = 1
-        -- NumSides not used as GUI provides perfect circle
+        properties.NumSides = 64
         
         local updateCircle = function()
             if removed then return end
             
             local diameter = properties.Radius * 2
             drawingObj.Size = UDim2.fromOffset(diameter, diameter)
-            drawingObj.Position = UDim2.fromOffset(properties.Position.X, properties.Position.Y)
-            drawingObj.Rotation = properties.Rotation
-            drawingObj.AnchorPoint = properties.AnchorPoint
+            drawingObj.Position = UDim2.fromOffset(properties.Position.X - properties.Radius, properties.Position.Y - properties.Radius)
             
             if properties.Filled then
                 drawingObj.BackgroundTransparency = 1 - properties.Transparency
@@ -275,7 +235,7 @@ Drawing.new = function(drawingType)
         local oldNewindex = mt.__newindex
         mt.__newindex = function(t, k, v)
             oldNewindex(t, k, v)
-            if k == "Radius" or k == "Position" or k == "Filled" or k == "Thickness" or k == "Color" or k == "Transparency" or k == "Rotation" or k == "AnchorPoint" then
+            if k == "Radius" or k == "Position" or k == "Filled" or k == "Thickness" or k == "Color" or k == "Transparency" then
                 updateCircle()
             end
         end
@@ -310,8 +270,8 @@ Drawing.new = function(drawingType)
         properties.PointA = Vector2.zero
         properties.PointB = Vector2.new(50, 100)
         properties.PointC = Vector2.new(100, 0)
+        properties.Filled = false
         properties.Thickness = 1
-        -- Filled removed as proper filling is not supported with GUI elements
         
         local updateTriangle = function()
             if removed then return end
@@ -327,8 +287,6 @@ Drawing.new = function(drawingType)
             
             drawingObj.Position = UDim2.fromOffset(minX, minY)
             drawingObj.Size = UDim2.fromOffset(maxX - minX, maxY - minY)
-            drawingObj.Rotation = properties.Rotation
-            drawingObj.AnchorPoint = properties.AnchorPoint
             
             local function drawLine(frame, p1, p2)
                 local dx = p2.X - p1.X
@@ -342,21 +300,28 @@ Drawing.new = function(drawingType)
                 frame.BackgroundTransparency = 1 - properties.Transparency
             end
             
-            drawingObj.BackgroundTransparency = 1
-            
-            drawLine(point1Frame, pA, pB)
-            drawLine(point2Frame, pB, pC)
-            drawLine(point3Frame, pC, pA)
+            if properties.Filled then
+                point1Frame.Visible = false
+                point2Frame.Visible = false
+                point3Frame.Visible = false
+                drawingObj.BackgroundColor3 = properties.Color
+                drawingObj.BackgroundTransparency = 1 - properties.Transparency
+            else
+                point1Frame.Visible = true
+                point2Frame.Visible = true
+                point3Frame.Visible = true
+                drawingObj.BackgroundTransparency = 1
+                
+                drawLine(point1Frame, pA, pB)
+                drawLine(point2Frame, pB, pC)
+                drawLine(point3Frame, pC, pA)
+            end
         end
         
         local oldNewindex = mt.__newindex
         mt.__newindex = function(t, k, v)
-            if k == "Filled" then
-                warn("Filled not supported for Triangle")
-                return
-            end
             oldNewindex(t, k, v)
-            if k == "PointA" or k == "PointB" or k == "PointC" or k == "Thickness" or k == "Color" or k == "Transparency" or k == "Rotation" or k == "AnchorPoint" then
+            if k == "PointA" or k == "PointB" or k == "PointC" or k == "Filled" or k == "Thickness" or k == "Color" or k == "Transparency" then
                 updateTriangle()
             end
         end
@@ -398,8 +363,8 @@ Drawing.new = function(drawingType)
         properties.PointB = Vector2.new(100, 0)
         properties.PointC = Vector2.new(100, 100)
         properties.PointD = Vector2.new(0, 100)
+        properties.Filled = false
         properties.Thickness = 1
-        -- Filled removed as proper filling is not supported with GUI elements
         
         local updateQuad = function()
             if removed then return end
@@ -416,8 +381,6 @@ Drawing.new = function(drawingType)
             
             drawingObj.Position = UDim2.fromOffset(minX, minY)
             drawingObj.Size = UDim2.fromOffset(maxX - minX, maxY - minY)
-            drawingObj.Rotation = properties.Rotation
-            drawingObj.AnchorPoint = properties.AnchorPoint
             
             local function drawLine(frame, p1, p2)
                 local dx = p2.X - p1.X
@@ -431,22 +394,31 @@ Drawing.new = function(drawingType)
                 frame.BackgroundTransparency = 1 - properties.Transparency
             end
             
-            drawingObj.BackgroundTransparency = 1
-            
-            drawLine(line1, pA, pB)
-            drawLine(line2, pB, pC)
-            drawLine(line3, pC, pD)
-            drawLine(line4, pD, pA)
+            if properties.Filled then
+                line1.Visible = false
+                line2.Visible = false
+                line3.Visible = false
+                line4.Visible = false
+                drawingObj.BackgroundColor3 = properties.Color
+                drawingObj.BackgroundTransparency = 1 - properties.Transparency
+            else
+                line1.Visible = true
+                line2.Visible = true
+                line3.Visible = true
+                line4.Visible = true
+                drawingObj.BackgroundTransparency = 1
+                
+                drawLine(line1, pA, pB)
+                drawLine(line2, pB, pC)
+                drawLine(line3, pC, pD)
+                drawLine(line4, pD, pA)
+            end
         end
         
         local oldNewindex = mt.__newindex
         mt.__newindex = function(t, k, v)
-            if k == "Filled" then
-                warn("Filled not supported for Quad")
-                return
-            end
             oldNewindex(t, k, v)
-            if k == "PointA" or k == "PointB" or k == "PointC" or k == "PointD" or k == "Thickness" or k == "Color" or k == "Transparency" or k == "Rotation" or k == "AnchorPoint" then
+            if k == "PointA" or k == "PointB" or k == "PointC" or k == "PointD" or k == "Filled" or k == "Thickness" or k == "Color" or k == "Transparency" then
                 updateQuad()
             end
         end
@@ -465,8 +437,7 @@ Drawing.new = function(drawingType)
         drawingObj.Parent = UI
         
         properties.Text = ""
-        properties.Size = Vector2.new(0, 0)  -- If non-zero, sets fixed size with wrapping
-        properties.TextWrapped = false
+        properties.Size = 13
         properties.Center = false
         properties.Outline = false
         properties.OutlineColor = Color3.new(0, 0, 0)
@@ -478,13 +449,11 @@ Drawing.new = function(drawingType)
             if removed then return end
             
             drawingObj.Text = tostring(properties.Text)
-            drawingObj.TextSize = properties.Size.Y > 0 and properties.Size.Y or 13  -- Use Size.Y as text size if set
+            drawingObj.TextSize = properties.Size
             drawingObj.Position = UDim2.fromOffset(properties.Position.X, properties.Position.Y)
             drawingObj.TextColor3 = properties.Color
             drawingObj.TextTransparency = 1 - properties.Transparency
             drawingObj.Font = Fonts[properties.Font] or Enum.Font.Code
-            drawingObj.Rotation = properties.Rotation
-            drawingObj.AnchorPoint = properties.AnchorPoint
             
             if properties.Center then
                 drawingObj.TextXAlignment = Enum.TextXAlignment.Center
@@ -499,15 +468,6 @@ Drawing.new = function(drawingType)
                 drawingObj.TextStrokeColor3 = properties.OutlineColor
             else
                 drawingObj.TextStrokeTransparency = 1
-            end
-            
-            if properties.Size ~= Vector2.new(0, 0) then
-                drawingObj.Size = UDim2.fromOffset(properties.Size.X, properties.Size.Y)
-                drawingObj.AutomaticSize = Enum.AutomaticSize.None
-                drawingObj.TextWrapped = properties.TextWrapped
-            else
-                drawingObj.AutomaticSize = Enum.AutomaticSize.XY
-                drawingObj.TextWrapped = false
             end
             
             game:GetService("RunService").RenderStepped:Wait()
@@ -530,10 +490,6 @@ Drawing.new = function(drawingType)
         drawingObj.BorderSizePixel = 0
         drawingObj.Parent = UI
         
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 0)
-        corner.Parent = drawingObj
-        
         properties.Data = ""
         properties.Size = Vector2.zero
         properties.Position = Vector2.zero
@@ -547,16 +503,12 @@ Drawing.new = function(drawingType)
             drawingObj.Position = UDim2.fromOffset(properties.Position.X, properties.Position.Y)
             drawingObj.ImageTransparency = 1 - properties.Transparency
             drawingObj.ImageColor3 = properties.Color
-            drawingObj.Rotation = properties.Rotation
-            drawingObj.AnchorPoint = properties.AnchorPoint
-            
-            corner.CornerRadius = UDim.new(0, properties.Rounding)
         end
         
         local oldNewindex = mt.__newindex
         mt.__newindex = function(t, k, v)
             oldNewindex(t, k, v)
-            if k == "Data" or k == "Size" or k == "Position" or k == "Transparency" or k == "Color" or k == "Rounding" or k == "Rotation" or k == "AnchorPoint" then
+            if k == "Data" or k == "Size" or k == "Position" or k == "Transparency" or k == "Color" then
                 updateImage()
             end
         end
