@@ -6364,4 +6364,5 @@ if CONFIG.AUTO_HIDE_ENABLED then
             toggleGui()
         end
     end)
+
 end
