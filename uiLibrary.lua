@@ -723,22 +723,7 @@ Instances:Create("UIPadding", {
     PaddingLeft = UDimNew(0, 15)
 })
 
-Library.Unload = function(self)
-    for Index, Value in self.Connections do 
-        Value.Connection:Disconnect()
-    end
 
-    for Index, Value in self.Threads do 
-        coroutine.close(Value)
-    end
-
-    if self.Holder then 
-        self.Holder:Clean()
-    end
-
-    Library = nil 
-    getgenv().Library = nil
-end
 
 Library.GetImage = function(self, Image)
     local ImageData = self.Images[Image]
@@ -5162,12 +5147,7 @@ do
     Library.CreateSettingsPage = function(self, Window, KeybindList, Watermark, ModeratorList)
         local SettingsPage = Window:Page({Name = "Settings", Columns = 2})
         local SettingsSection = SettingsPage:Section({Name = "Settings", Side = 1}) do
-            SettingsSection:Button({
-                Name = "Unload",
-                Callback = function()
-                    Library:Unload()
-                end
-            })
+         
 
             SettingsSection:Toggle({
                 Name = "Watermark",
@@ -5178,25 +5158,6 @@ do
                 end
             })
 
-            SettingsSection:Toggle({
-                Name = "Keybind List",
-                Flag = "Keybind list",
-                Default = true,
-                Callback = function(Value)
-                    KeybindList:SetVisibility(Value)
-                end
-            })
-
-            SettingsSection:Toggle({
-                Name = "Moderator List",
-                Flag = "Moderator list",
-                Default = true,
-                Callback = function(Value)
-                    if ModeratorList then
-                        ModeratorList:SetVisibility(Value)
-                    end
-                end
-            })
             
             SettingsSection:Label("Menu Keybind"):Keybind({
                 Name = "Menu Keybind",
@@ -5208,41 +5169,6 @@ do
                 end
             })
 
-            SettingsSection:Slider({
-                Name = "Tween Speed",
-                Default = 0.2,
-                Flag = "Tween Speed",
-                Decimals = 0.01,
-                Suffix = "s",
-                Max = 10,
-                Min = 0,
-                Callback = function(Value)
-                    Library.Tween.Time = Value
-                end
-            })
-
-            SettingsSection:Dropdown({
-                Name = "Tween Style",
-                Flag = "Tween style",
-                MaxSize = 200,
-                Items = { "Linear", "Quad", "Quart", "Back", "Bounce", "Circular", "Cubic", "Elastic", "Exponential", "Sine", "Quint" },
-                Default = "Quint",
-                Callback = function(Value)
-                    if not Value then Value = "Quint" end
-                    Library.Tween.Style = Enum.EasingStyle[Value]
-                end
-            })
-
-            SettingsSection:Dropdown({
-                Name = "Tween Direction",
-                Flag = "Tween direction",
-                Items = { "In", "Out", "InOut" },
-                Default = "Out",
-                Callback = function(Value)
-                    if not Value then Value = "Out" end
-                    Library.Tween.Direction = Enum.EasingDirection[Value]
-                end
-            })
         end
         
         local ConfigsSection = SettingsPage:Section({Name = "Configs", Side = 2}) do
