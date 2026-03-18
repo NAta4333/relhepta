@@ -723,7 +723,22 @@ Instances:Create("UIPadding", {
     PaddingLeft = UDimNew(0, 15)
 })
 
+Library.Unload = function(self)
+    for Index, Value in self.Connections do 
+        Value.Connection:Disconnect()
+    end
 
+    for Index, Value in self.Threads do 
+        coroutine.close(Value)
+    end
+
+    if self.Holder then 
+        self.Holder:Clean()
+    end
+
+    Library = nil 
+    getgenv().Library = nil
+end
 
 Library.GetImage = function(self, Image)
     local ImageData = self.Images[Image]
@@ -5147,7 +5162,7 @@ do
     Library.CreateSettingsPage = function(self, Window, KeybindList, Watermark, ModeratorList)
         local SettingsPage = Window:Page({Name = "Settings", Columns = 2})
         local SettingsSection = SettingsPage:Section({Name = "Settings", Side = 1}) do
-         
+           
 
             SettingsSection:Toggle({
                 Name = "Watermark",
@@ -5169,6 +5184,7 @@ do
                 end
             })
 
+            })
         end
         
         local ConfigsSection = SettingsPage:Section({Name = "Configs", Side = 2}) do
