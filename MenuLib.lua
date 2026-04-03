@@ -1,49 +1,32 @@
 -- Menu Library for 22s Duels Hub
--- Separate UI/GUI library that can be reused
-
 local MenuLib = {}
 
--- ============================================
--- COLOR DEFINITIONS
--- ============================================
 MenuLib.Colors = {
     bg = Color3.fromRGB(10, 10, 10),
     purple = Color3.fromRGB(255, 255, 255),
     purpleLight = Color3.fromRGB(200, 200, 200),
     purpleDark = Color3.fromRGB(50, 50, 50),
-    purpleGlow = Color3.fromRGB(150, 150, 150),
     accent = Color3.fromRGB(255, 255, 255),
     text = Color3.fromRGB(255, 255, 255),
     textDim = Color3.fromRGB(150, 150, 150),
     success = Color3.fromRGB(200, 200, 200),
-    danger = Color3.fromRGB(100, 100, 100),
-    border = Color3.fromRGB(60, 60, 60)
+    danger = Color3.fromRGB(100, 100, 100)
 }
 
--- ============================================
--- MENU INITIALIZATION
--- ============================================
 function MenuLib:Init(player, runService, tweenService, userInputService, soundService)
     self.Player = player
     self.RunService = runService
     self.TweenService = tweenService
     self.UserInputService = userInputService
     self.SoundService = soundService
-
     self.VisualSetters = {}
     self.SliderSetters = {}
     self.KeyButtons = {}
     self.WaitingForKeybind = nil
-    self.KeyBinds = {}
-
     self.GuiScale = (self.UserInputService.TouchEnabled and not self.UserInputService.KeyboardEnabled) and 0.4 or 1
-
     return self
 end
 
--- ============================================
--- SOUND UTILITY
--- ============================================
 function MenuLib:PlaySound(id, vol, spd)
     pcall(function()
         local s = Instance.new("Sound", self.SoundService)
@@ -55,9 +38,6 @@ function MenuLib:PlaySound(id, vol, spd)
     end)
 end
 
--- ============================================
--- CREATE MAIN GUI SCREEN
--- ============================================
 function MenuLib:CreateScreenGui()
     local sg = Instance.new("ScreenGui")
     sg.Name = "22S_BW"
@@ -66,13 +46,9 @@ function MenuLib:CreateScreenGui()
     return sg
 end
 
--- ============================================
--- CREATE PROGRESS BAR
--- ============================================
 function MenuLib:CreateProgressBar(parentGui)
     local C = self.Colors
     local guiScale = self.GuiScale
-
     local progressBar = Instance.new("Frame", parentGui)
     progressBar.Size = UDim2.new(0, 420 * guiScale, 0, 56 * guiScale)
     progressBar.Position = UDim2.new(0.5, -210 * guiScale, 1, -168 * guiScale)
@@ -81,49 +57,18 @@ function MenuLib:CreateProgressBar(parentGui)
     progressBar.ClipsDescendants = true
     Instance.new("UICorner", progressBar).CornerRadius = UDim.new(0, 14 * guiScale)
 
-    local pStroke = Instance.new("UIStroke", progressBar)
-    pStroke.Thickness = 2
-    local pGrad = Instance.new("UIGradient", pStroke)
-    pGrad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 200, 200)),
-        ColorSequenceKeypoint.new(0.3, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(150, 150, 150)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
-    })
+    local pTrack = Instance.new("Frame", progressBar)
+    pTrack.Size = UDim2.new(0.94, 0, 0, 8 * guiScale)
+    pTrack.Position = UDim2.new(0.03, 0, 1, -15 * guiScale)
+    pTrack.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    pTrack.ZIndex = 2
+    Instance.new("UICorner", pTrack).CornerRadius = UDim.new(1, 0)
 
-    task.spawn(function()
-        local r = 0
-        while progressBar.Parent do
-            r = (r + 3) % 360
-            pGrad.Rotation = r
-            task.wait(0.02)
-        end
-    end)
-
-    for i = 1, 12 do
-        local ball = Instance.new("Frame", progressBar)
-        ball.Size = UDim2.new(0, math.random(2, 3), 0, math.random(2, 3))
-        ball.Position = UDim2.new(math.random(3, 97) / 100, 0, math.random(15, 85) / 100, 0)
-        ball.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
-        ball.BackgroundTransparency = math.random(20, 50) / 100
-        ball.BorderSizePixel = 0
-        ball.ZIndex = 1
-        Instance.new("UICorner", ball).CornerRadius = UDim.new(1, 0)
-
-        task.spawn(function()
-            local startX = ball.Position.X.Scale
-            local startY = ball.Position.Y.Scale
-            local phase = math.random() * math.pi * 2
-            while ball.Parent do
-                local t = tick() + phase
-                local newX = startX + math.sin(t * (0.5 + i * 0.1)) * 0.03
-                local newY = startY + math.cos(t * (0.4 + i * 0.08)) * 0.05
-                ball.Position = UDim2.new(math.clamp(newX, 0.02, 0.98), 0, math.clamp(newY, 0.1, 0.9), 0)
-                ball.BackgroundTransparency = 0.3 + math.sin(t * 2) * 0.2
-                task.wait(0.03)
-            end
-        end)
-    end
+    local ProgressBarFill = Instance.new("Frame", pTrack)
+    ProgressBarFill.Size = UDim2.new(0, 0, 1, 0)
+    ProgressBarFill.BackgroundColor3 = C.purple
+    ProgressBarFill.ZIndex = 2
+    Instance.new("UICorner", ProgressBarFill).CornerRadius = UDim.new(1, 0)
 
     local ProgressLabel = Instance.new("TextLabel", progressBar)
     ProgressLabel.Size = UDim2.new(0.35, 0, 0.5, 0)
@@ -157,35 +102,12 @@ function MenuLib:CreateProgressBar(parentGui)
     RadiusInput.ZIndex = 3
     Instance.new("UICorner", RadiusInput).CornerRadius = UDim.new(0, 6 * guiScale)
 
-    local pTrack = Instance.new("Frame", progressBar)
-    pTrack.Size = UDim2.new(0.94, 0, 0, 8 * guiScale)
-    pTrack.Position = UDim2.new(0.03, 0, 1, -15 * guiScale)
-    pTrack.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    pTrack.ZIndex = 2
-    Instance.new("UICorner", pTrack).CornerRadius = UDim.new(1, 0)
-
-    local ProgressBarFill = Instance.new("Frame", pTrack)
-    ProgressBarFill.Size = UDim2.new(0, 0, 1, 0)
-    ProgressBarFill.BackgroundColor3 = C.purple
-    ProgressBarFill.ZIndex = 2
-    Instance.new("UICorner", ProgressBarFill).CornerRadius = UDim.new(1, 0)
-
-    return {
-        Frame = progressBar,
-        Label = ProgressLabel,
-        PercentLabel = ProgressPercentLabel,
-        BarFill = ProgressBarFill,
-        RadiusInput = RadiusInput
-    }
+    return { Frame = progressBar, Label = ProgressLabel, PercentLabel = ProgressPercentLabel, BarFill = ProgressBarFill, RadiusInput = RadiusInput }
 end
 
--- ============================================
--- CREATE MAIN WINDOW
--- ============================================
 function MenuLib:CreateMainWindow(parentGui)
     local C = self.Colors
     local guiScale = self.GuiScale
-
     local main = Instance.new("Frame", parentGui)
     main.Name = "Main"
     main.Size = UDim2.new(0, 560 * guiScale, 0, 740 * guiScale)
@@ -197,53 +119,6 @@ function MenuLib:CreateMainWindow(parentGui)
     main.ClipsDescendants = true
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 18 * guiScale)
 
-    local mainStroke = Instance.new("UIStroke", main)
-    mainStroke.Thickness = 2
-    local strokeGrad = Instance.new("UIGradient", mainStroke)
-    strokeGrad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 200, 200)),
-        ColorSequenceKeypoint.new(0.2, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 150, 150)),
-        ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 200))
-    })
-
-    task.spawn(function()
-        local r = 0
-        while main.Parent do
-            r = (r + 3) % 360
-            strokeGrad.Rotation = r
-            task.wait(0.02)
-        end
-    end)
-
-    for i = 1, 60 do
-        local ball = Instance.new("Frame", main)
-        ball.Size = UDim2.new(0, math.random(2, 4), 0, math.random(2, 4))
-        ball.Position = UDim2.new(math.random(2, 98) / 100, 0, math.random(2, 98) / 100, 0)
-        ball.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
-        ball.BackgroundTransparency = math.random(10, 40) / 100
-        ball.BorderSizePixel = 0
-        ball.ZIndex = 2
-        Instance.new("UICorner", ball).CornerRadius = UDim.new(1, 0)
-
-        task.spawn(function()
-            local startX = ball.Position.X.Scale
-            local startY = ball.Position.Y.Scale
-            local phase = math.random() * math.pi * 2
-            local speedMult = 0.3 + math.random() * 0.4
-            while ball.Parent do
-                local t = tick() + phase
-                local newX = startX + math.sin(t * speedMult) * 0.02
-                local newY = startY + math.cos(t * speedMult * 0.8) * 0.015
-                ball.Position = UDim2.new(math.clamp(newX, 0.01, 0.99), 0, math.clamp(newY, 0.01, 0.99), 0)
-                ball.BackgroundTransparency = 0.2 + math.sin(t * 1.5 + phase) * 0.25
-                task.wait(0.03)
-            end
-        end)
-    end
-
-    -- Header
     local header = Instance.new("Frame", main)
     header.Size = UDim2.new(1, 0, 0, 70 * guiScale)
     header.BackgroundTransparency = 1
@@ -282,9 +157,6 @@ function MenuLib:CreateMainWindow(parentGui)
     closeBtn.TextSize = 24 * guiScale
     closeBtn.ZIndex = 5
 
-    closeBtn.MouseEnter:Connect(function() closeBtn.TextColor3 = C.danger end)
-    closeBtn.MouseLeave:Connect(function() closeBtn.TextColor3 = C.textDim end)
-
     local leftSide = Instance.new("Frame", main)
     leftSide.Size = UDim2.new(0.48, 0, 0, 650 * guiScale)
     leftSide.Position = UDim2.new(0.01, 0, 0, 75 * guiScale)
@@ -301,22 +173,12 @@ function MenuLib:CreateMainWindow(parentGui)
     rightSide.ClipsDescendants = true
     rightSide.ZIndex = 2
 
-    return {
-        Frame = main,
-        Header = header,
-        CloseBtn = closeBtn,
-        LeftSide = leftSide,
-        RightSide = rightSide
-    }
+    return { Frame = main, Header = header, CloseBtn = closeBtn, LeftSide = leftSide, RightSide = rightSide }
 end
 
--- ============================================
--- CREATE TOGGLE WITH KEYBIND
--- ============================================
 function MenuLib:CreateToggleWithKey(parent, yPos, labelText, keybindKey, enabledKey, callback, specialColor)
     local C = self.Colors
     local guiScale = self.GuiScale
-
     local row = Instance.new("Frame", parent)
     row.Size = UDim2.new(1, -10 * guiScale, 0, 48 * guiScale)
     row.Position = UDim2.new(0, 5 * guiScale, 0, yPos * guiScale)
@@ -334,7 +196,6 @@ function MenuLib:CreateToggleWithKey(parent, yPos, labelText, keybindKey, enable
     keyBtn.TextSize = 11 * guiScale
     keyBtn.ZIndex = 4
     Instance.new("UICorner", keyBtn).CornerRadius = UDim.new(0, 8 * guiScale)
-
     self.KeyButtons[enabledKey] = keyBtn
 
     local label = Instance.new("TextLabel", row)
@@ -347,8 +208,6 @@ function MenuLib:CreateToggleWithKey(parent, yPos, labelText, keybindKey, enable
     label.TextSize = 14 * guiScale
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 4
-
-    local onColor = specialColor or C.purple
 
     local toggleBg = Instance.new("Frame", row)
     toggleBg.Size = UDim2.new(0, 50 * guiScale, 0, 26 * guiScale)
@@ -372,59 +231,28 @@ function MenuLib:CreateToggleWithKey(parent, yPos, labelText, keybindKey, enable
     clickBtn.ZIndex = 6
 
     local isOn = false
-
     local function setVisual(state, skipCallback)
         isOn = state
-
         if state then
-            self.TweenService:Create(toggleBg, TweenInfo.new(0.25), {
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            }):Play()
-
-            self.TweenService:Create(toggleCircle, TweenInfo.new(0.28), {
-                BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-                Position = UDim2.new(1, -23 * guiScale, 0.5, -10 * guiScale)
-            }):Play()
+            self.TweenService:Create(toggleBg, TweenInfo.new(0.25), { BackgroundColor3 = Color3.fromRGB(255, 255, 255) }):Play()
+            self.TweenService:Create(toggleCircle, TweenInfo.new(0.28), { BackgroundColor3 = Color3.fromRGB(0, 0, 0), Position = UDim2.new(1, -23 * guiScale, 0.5, -10 * guiScale) }):Play()
         else
-            self.TweenService:Create(toggleBg, TweenInfo.new(0.25), {
-                BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-            }):Play()
-
-            self.TweenService:Create(toggleCircle, TweenInfo.new(0.28), {
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                Position = UDim2.new(0, 3 * guiScale, 0.5, -10 * guiScale)
-            }):Play()
+            self.TweenService:Create(toggleBg, TweenInfo.new(0.25), { BackgroundColor3 = Color3.fromRGB(35, 35, 35) }):Play()
+            self.TweenService:Create(toggleCircle, TweenInfo.new(0.28), { BackgroundColor3 = Color3.fromRGB(255, 255, 255), Position = UDim2.new(0, 3 * guiScale, 0.5, -10 * guiScale) }):Play()
         end
-
-        if not skipCallback then
-            callback(isOn)
-        end
+        if not skipCallback then callback(isOn) end
     end
 
     self.VisualSetters[enabledKey] = setVisual
-
-    clickBtn.MouseButton1Click:Connect(function()
-        isOn = not isOn
-        setVisual(isOn)
-        self:PlaySound("rbxassetid://6895079813", 0.4, 1)
-    end)
-
-    keyBtn.MouseButton1Click:Connect(function()
-        self.WaitingForKeybind = keybindKey
-        keyBtn.Text = "..."
-        self:PlaySound("rbxassetid://6895079813", 0.3, 1.5)
-    end)
+    clickBtn.MouseButton1Click:Connect(function() isOn = not isOn setVisual(isOn) end)
+    keyBtn.MouseButton1Click:Connect(function() self.WaitingForKeybind = keybindKey keyBtn.Text = "..." end)
 
     return row, enabledKey, function() return isOn end, setVisual, keyBtn
 end
 
--- ============================================
--- CREATE TOGGLE
--- ============================================
 function MenuLib:CreateToggle(parent, yPos, labelText, enabledKey, callback, specialColor)
     local C = self.Colors
     local guiScale = self.GuiScale
-
     local row = Instance.new("Frame", parent)
     row.Size = UDim2.new(1, -10 * guiScale, 0, 48 * guiScale)
     row.Position = UDim2.new(0, 5 * guiScale, 0, yPos * guiScale)
@@ -442,8 +270,6 @@ function MenuLib:CreateToggle(parent, yPos, labelText, enabledKey, callback, spe
     label.TextSize = 14 * guiScale
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 4
-
-    local onColor = specialColor or C.purple
 
     local toggleBg = Instance.new("Frame", row)
     toggleBg.Size = UDim2.new(0, 50 * guiScale, 0, 26 * guiScale)
@@ -466,53 +292,27 @@ function MenuLib:CreateToggle(parent, yPos, labelText, enabledKey, callback, spe
     clickBtn.ZIndex = 6
 
     local isOn = false
-
     local function setVisual(state, skipCallback)
         isOn = state
-
         if state then
-            self.TweenService:Create(toggleBg, TweenInfo.new(0.25), {
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            }):Play()
-
-            self.TweenService:Create(toggleCircle, TweenInfo.new(0.28), {
-                BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-                Position = UDim2.new(1, -23 * guiScale, 0.5, -10 * guiScale)
-            }):Play()
+            self.TweenService:Create(toggleBg, TweenInfo.new(0.25), { BackgroundColor3 = Color3.fromRGB(255, 255, 255) }):Play()
+            self.TweenService:Create(toggleCircle, TweenInfo.new(0.28), { BackgroundColor3 = Color3.fromRGB(0, 0, 0), Position = UDim2.new(1, -23 * guiScale, 0.5, -10 * guiScale) }):Play()
         else
-            self.TweenService:Create(toggleBg, TweenInfo.new(0.25), {
-                BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-            }):Play()
-
-            self.TweenService:Create(toggleCircle, TweenInfo.new(0.28), {
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                Position = UDim2.new(0, 3 * guiScale, 0.5, -10 * guiScale)
-            }):Play()
+            self.TweenService:Create(toggleBg, TweenInfo.new(0.25), { BackgroundColor3 = Color3.fromRGB(35, 35, 35) }):Play()
+            self.TweenService:Create(toggleCircle, TweenInfo.new(0.28), { BackgroundColor3 = Color3.fromRGB(255, 255, 255), Position = UDim2.new(0, 3 * guiScale, 0.5, -10 * guiScale) }):Play()
         end
-
-        if not skipCallback then
-            callback(isOn)
-        end
+        if not skipCallback then callback(isOn) end
     end
 
     self.VisualSetters[enabledKey] = setVisual
-
-    clickBtn.MouseButton1Click:Connect(function()
-        isOn = not isOn
-        setVisual(isOn)
-        self:PlaySound("rbxassetid://6895079813", 0.4, 1)
-    end)
+    clickBtn.MouseButton1Click:Connect(function() isOn = not isOn setVisual(isOn) end)
 
     return row, enabledKey, function() return isOn end, setVisual
 end
 
--- ============================================
--- CREATE SLIDER
--- ============================================
 function MenuLib:CreateSlider(parent, yPos, labelText, minVal, maxVal, valueKey, defaultValue, callback)
     local C = self.Colors
     local guiScale = self.GuiScale
-
     local container = Instance.new("Frame", parent)
     container.Size = UDim2.new(1, -10 * guiScale, 0, 56 * guiScale)
     container.Position = UDim2.new(0, 5 * guiScale, 0, yPos * guiScale)
@@ -532,7 +332,6 @@ function MenuLib:CreateSlider(parent, yPos, labelText, minVal, maxVal, valueKey,
     label.ZIndex = 4
 
     local defaultVal = defaultValue or minVal
-
     local valueInput = Instance.new("TextBox", container)
     valueInput.Size = UDim2.new(0, 50 * guiScale, 0, 22 * guiScale)
     valueInput.Position = UDim2.new(1, -58 * guiScale, 0, 2 * guiScale)
@@ -553,7 +352,6 @@ function MenuLib:CreateSlider(parent, yPos, labelText, minVal, maxVal, valueKey,
     Instance.new("UICorner", sliderBg).CornerRadius = UDim.new(1, 0)
 
     local pct = (defaultVal - minVal) / (maxVal - minVal)
-
     local sliderFill = Instance.new("Frame", sliderBg)
     sliderFill.Size = UDim2.new(pct, 0, 1, 0)
     sliderFill.BackgroundColor3 = C.purple
@@ -567,26 +365,6 @@ function MenuLib:CreateSlider(parent, yPos, labelText, minVal, maxVal, valueKey,
     thumb.ZIndex = 6
     Instance.new("UICorner", thumb).CornerRadius = UDim.new(1, 0)
 
-    local sliderBtn = Instance.new("TextButton", sliderBg)
-    sliderBtn.Size = UDim2.new(1, 0, 3, 0)
-    sliderBtn.Position = UDim2.new(0, 0, -1, 0)
-    sliderBtn.BackgroundTransparency = 1
-    sliderBtn.Text = ""
-    sliderBtn.ZIndex = 7
-
-    local dragging = false
-
-    local function updateSlider(rel, skipCallback)
-        rel = math.clamp(rel, 0, 1)
-        sliderFill.Size = UDim2.new(rel, 0, 1, 0)
-        thumb.Position = UDim2.new(rel, -8 * guiScale, 0.5, -8 * guiScale)
-        local val = math.floor(minVal + (maxVal - minVal) * rel)
-        valueInput.Text = tostring(val)
-        if not skipCallback then
-            callback(val)
-        end
-    end
-
     local function setSliderValue(val)
         val = math.clamp(val, minVal, maxVal)
         local rel = (val - minVal) / (maxVal - minVal)
@@ -597,42 +375,12 @@ function MenuLib:CreateSlider(parent, yPos, labelText, minVal, maxVal, valueKey,
 
     self.SliderSetters[valueKey] = setSliderValue
 
-    sliderBtn.MouseButton1Down:Connect(function() dragging = true end)
-
-    self.UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
-
-    self.UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            updateSlider((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X)
-        end
-    end)
-
-    valueInput.FocusLost:Connect(function()
-        local n = tonumber(valueInput.Text)
-        if n then
-            n = math.clamp(math.floor(n), minVal, maxVal)
-            valueInput.Text = tostring(n)
-            local r = (n - minVal) / (maxVal - minVal)
-            sliderFill.Size = UDim2.new(r, 0, 1, 0)
-            thumb.Position = UDim2.new(r, -8 * guiScale, 0.5, -8 * guiScale)
-            callback(n)
-        end
-    end)
-
     return container, setSliderValue
 end
 
--- ============================================
--- CREATE SAVE BUTTON
--- ============================================
 function MenuLib:CreateSaveButton(parent, yPos, callback)
     local C = self.Colors
     local guiScale = self.GuiScale
-
     local SaveBtn = Instance.new("TextButton", parent)
     SaveBtn.Size = UDim2.new(1, -10 * guiScale, 0, 50 * guiScale)
     SaveBtn.Position = UDim2.new(0, 5 * guiScale, 0, yPos * guiScale)
@@ -643,21 +391,13 @@ function MenuLib:CreateSaveButton(parent, yPos, callback)
     SaveBtn.TextSize = 15 * guiScale
     SaveBtn.ZIndex = 3
     Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 12 * guiScale)
-
-    SaveBtn.MouseButton1Click:Connect(function()
-        callback(SaveBtn)
-    end)
-
+    SaveBtn.MouseButton1Click:Connect(function() callback(SaveBtn) end)
     return SaveBtn
 end
 
--- ============================================
--- CREATE INFO LABEL
--- ============================================
 function MenuLib:CreateInfoLabel(parent, yPos, text)
     local C = self.Colors
     local guiScale = self.GuiScale
-
     local infoLabel = Instance.new("TextLabel", parent)
     infoLabel.Size = UDim2.new(1, 0, 0, 40 * guiScale)
     infoLabel.Position = UDim2.new(0, 0, 0, yPos * guiScale)
@@ -667,8 +407,85 @@ function MenuLib:CreateInfoLabel(parent, yPos, text)
     infoLabel.Font = Enum.Font.Gotham
     infoLabel.TextSize = 9 * guiScale
     infoLabel.ZIndex = 3
-
     return infoLabel
 end
+
+function MenuLib:CreateDropdown(parent, yPos, labelText, options, defaultIndex, callback)
+    local C = self.Colors
+    local guiScale = self.GuiScale
+    local container = Instance.new("Frame", parent)
+    container.Size = UDim2.new(1, -10 * guiScale, 0, 48 * guiScale)
+    container.Position = UDim2.new(0, 5 * guiScale, 0, yPos * guiScale)
+    container.BackgroundTransparency = 1
+    container.BorderSizePixel = 0
+    container.ZIndex = 3
+
+    local label = Instance.new("TextLabel", container)
+    label.Size = UDim2.new(0.6, 0, 0, 20 * guiScale)
+    label.Position = UDim2.new(0, 10 * guiScale, 0, 4 * guiScale)
+    label.BackgroundTransparency = 1
+    label.Text = labelText
+    label.TextColor3 = C.textDim
+    label.Font = Enum.Font.GothamMedium
+    label.TextSize = 12 * guiScale
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 4
+
+    local dropdownBtn = Instance.new("TextButton", container)
+    dropdownBtn.Size = UDim2.new(0.4, -5 * guiScale, 0, 28 * guiScale)
+    dropdownBtn.Position = UDim2.new(0.55, 0, 0, 16 * guiScale)
+    dropdownBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    dropdownBtn.TextColor3 = C.purpleLight
+    dropdownBtn.Font = Enum.Font.GothamBold
+    dropdownBtn.TextSize = 11 * guiScale
+    dropdownBtn.ZIndex = 4
+    dropdownBtn.Text = options[defaultIndex or 1] or "Select"
+    Instance.new("UICorner", dropdownBtn).CornerRadius = UDim.new(0, 6 * guiScale)
+
+    local dropdownList = Instance.new("Frame")
+    dropdownList.Name = "DropdownList"
+    dropdownList.Size = UDim2.new(0.4, -5 * guiScale, 0, (#options * 28 + 5) * guiScale)
+    dropdownList.Position = UDim2.new(0.55, 0, 0, 48 * guiScale)
+    dropdownList.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    dropdownList.BorderSizePixel = 0
+    dropdownList.ZIndex = 5
+    dropdownList.Visible = false
+    Instance.new("UICorner", dropdownList).CornerRadius = UDim.new(0, 6 * guiScale)
+
+    for i, option in ipairs(options) do
+        local btn = Instance.new("TextButton", dropdownList)
+        btn.Size = UDim2.new(1, 0, 0, 28 * guiScale)
+        btn.Position = UDim2.new(0, 0, 0, (i-1) * 28 * guiScale)
+        btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        btn.TextColor3 = C.purpleLight
+        btn.Font = Enum.Font.GothamMedium
+        btn.TextSize = 11 * guiScale
+        btn.Text = option
+        btn.ZIndex = 5
+        btn.MouseButton1Click:Connect(function()
+            dropdownBtn.Text = option
+            dropdownList.Visible = false
+            callback(option, i)
+        end)
+        btn.MouseEnter:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        end)
+        btn.MouseLeave:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        end)
+    end
+
+    dropdownBtn.MouseButton1Click:Connect(function()
+        dropdownList.Visible = not dropdownList.Visible
+    end)
+
+    task.spawn(function()
+        dropdownList.Parent = container
+    end)
+
+    return container
+end
+
+print("✓ Menu library loaded successfully")
 
 return MenuLib
