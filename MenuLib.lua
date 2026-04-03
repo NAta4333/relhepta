@@ -286,10 +286,11 @@ function MenuLib:CreateToggleWithKey(parent, yPos, labelText, keybindKey, enable
     local C = self.Colors
     local guiScale = self.GuiScale
     local row = Instance.new("Frame", parent)
-    row.Size = UDim2.new(1, 0, 0, 40 * guiScale)
+    row.Size = UDim2.new(1, -20 * guiScale, 0, 40 * guiScale)
     row.BackgroundTransparency = 1
     row.BorderSizePixel = 0
     row.ZIndex = 3
+    row.LayoutOrder = 1
 
     local keyBtn = Instance.new("TextButton", row)
     keyBtn.Size = UDim2.new(0, 36 * guiScale, 0, 28 * guiScale)
@@ -304,7 +305,7 @@ function MenuLib:CreateToggleWithKey(parent, yPos, labelText, keybindKey, enable
     self.KeyButtons[enabledKey] = keyBtn
 
     local label = Instance.new("TextLabel", row)
-    label.Size = UDim2.new(0.55, 0, 1, 0)
+    label.Size = UDim2.new(0.45, 0, 1, 0)
     label.Position = UDim2.new(0, 45 * guiScale, 0, 0)
     label.BackgroundTransparency = 1
     label.Text = labelText
@@ -359,10 +360,11 @@ function MenuLib:CreateToggle(parent, yPos, labelText, enabledKey, callback, spe
     local C = self.Colors
     local guiScale = self.GuiScale
     local row = Instance.new("Frame", parent)
-    row.Size = UDim2.new(1, 0, 0, 40 * guiScale)
+    row.Size = UDim2.new(1, -20 * guiScale, 0, 40 * guiScale)
     row.BackgroundTransparency = 1
     row.BorderSizePixel = 0
     row.ZIndex = 3
+    row.LayoutOrder = 1
 
     local label = Instance.new("TextLabel", row)
     label.Size = UDim2.new(0.7, 0, 1, 0)
@@ -417,10 +419,11 @@ function MenuLib:CreateSlider(parent, yPos, labelText, minVal, maxVal, valueKey,
     local C = self.Colors
     local guiScale = self.GuiScale
     local container = Instance.new("Frame", parent)
-    container.Size = UDim2.new(1, 0, 0, 50 * guiScale)
+    container.Size = UDim2.new(1, -20 * guiScale, 0, 50 * guiScale)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
     container.ZIndex = 3
+    container.LayoutOrder = 1
 
     local label = Instance.new("TextLabel", container)
     label.Size = UDim2.new(0.6, 0, 0, 18 * guiScale)
@@ -503,11 +506,11 @@ function MenuLib:CreateSection(parent, title)
     local guiScale = self.GuiScale
 
     local section = Instance.new("Frame", parent)
-    section.Size = UDim2.new(1, 0, 0, 0)
+    section.Size = UDim2.new(1, 0, 0, 300 * guiScale)
     section.BackgroundTransparency = 1
     section.BorderSizePixel = 0
     section.ZIndex = 3
-    section.LayoutOrder = (parent:FindFirstChild("UIListLayout") and #parent:GetChildren() or 0)
+    section.CanCollide = false
 
     -- Section Header
     local header = Instance.new("Frame", section)
@@ -515,6 +518,7 @@ function MenuLib:CreateSection(parent, title)
     header.BackgroundColor3 = C.bgLight
     header.BorderSizePixel = 0
     header.ZIndex = 3
+    header.LayoutOrder = 1
     Instance.new("UICorner", header).CornerRadius = UDim.new(0, 8 * guiScale)
 
     local headerBtn = Instance.new("TextButton", header)
@@ -548,16 +552,17 @@ function MenuLib:CreateSection(parent, title)
 
     -- Content Container
     local content = Instance.new("Frame", section)
-    content.Size = UDim2.new(1, 0, 0, 0)
+    content.Size = UDim2.new(1, 0, 1, -40 * guiScale)
     content.Position = UDim2.new(0, 0, 0, 40 * guiScale)
     content.BackgroundColor3 = C.tab
     content.BorderSizePixel = 0
     content.ClipsDescendants = true
     content.ZIndex = 2
+    content.LayoutOrder = 2
     Instance.new("UICorner", content).CornerRadius = UDim.new(0, 8 * guiScale)
 
     local contentLayout = Instance.new("UIListLayout", content)
-    contentLayout.Padding = UDim.new(0, 3 * guiScale)
+    contentLayout.Padding = UDim.new(0, 5 * guiScale)
     contentLayout.FillDirection = Enum.FillDirection.Vertical
     contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
@@ -571,25 +576,21 @@ function MenuLib:CreateSection(parent, title)
 
     local function toggleSection()
         isOpen = not isOpen
-        local targetSize = isOpen and content.Size + UDim2.new(0, 0, 0, 200 * guiScale) or UDim2.new(1, 0, 0, 0)
 
         if isOpen then
             arrow.Text = "▼"
-            content.Size = UDim2.new(1, 0, 0, 0)
+            section.Size = UDim2.new(1, 0, 0, 300 * guiScale)
             for _, child in ipairs(content:GetChildren()) do
                 if child ~= contentLayout and child ~= contentPadding then
-                    if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") then
-                        child.Visible = true
-                    end
+                    child.Visible = true
                 end
             end
         else
             arrow.Text = "▶"
+            section.Size = UDim2.new(1, 0, 0, 40 * guiScale)
             for _, child in ipairs(content:GetChildren()) do
                 if child ~= contentLayout and child ~= contentPadding then
-                    if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") then
-                        child.Visible = false
-                    end
+                    child.Visible = false
                 end
             end
         end
