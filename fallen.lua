@@ -1,1 +1,1 @@
-loadstring(game:HttpGet("https://protector-mu.vercel.app/s/2Ml5byFr9Z01YPYH"))()
+loadstring(game:HttpGet("https://protector-mu.vercel.app/s/uqr8d7mcOR8YUK8y"))()
