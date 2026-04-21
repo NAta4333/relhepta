@@ -5,13 +5,7 @@ return {
         gameName = "[UP] Just a baseplate.",
         placeIDs = {123974602339071},  
         executors = {                
-            "Synapse X",
-            "Script-Ware",
-            "KRNL",
-            "Fluxus",
-            "Electron",
-            "Oxygen U",
-            "Trigon"
+            "Potassium"
         },
         customMessage = {             
             ["Fluxus"] = "Unstable",  
