@@ -3,8 +3,8 @@ return {
     -- Fallen Survival
     {
         gameName = "[UP] Just a baseplate.",
-        placeIDs = {123974602339071},  -- Place ID игры
-        executors = {                  -- Поддерживаемые инжекторы
+        placeIDs = {123974602339071},  
+        executors = {                
             "Synapse X",
             "Script-Ware",
             "KRNL",
@@ -13,11 +13,11 @@ return {
             "Oxygen U",
             "Trigon"
         },
-        customMessage = {              -- Сообщения для конкретных инжекторов
-            ["Fluxus"] = "Unstable",   -- Fluxus работает нестабильно
-            ["Electron"] = "Experimental" -- Electron работает в экспериментальном режиме
+        customMessage = {             
+            ["Fluxus"] = "Unstable",  
+            ["Electron"] = "Experimental" 
         },
-        gitPath = "fallensurvival",    -- Папка с игрой в репозитории
-        status = "Undetected"          -- Статус игры (Undetected, Detected, Unstable)
+        gitPath = "https://raw.githubusercontent.com/NAta4333/relhepta/refs/heads/main/fallen.lua",   
+        status = "Undetected"          
     }
 }
